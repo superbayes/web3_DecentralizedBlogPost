@@ -20,3 +20,9 @@
 
 ## 架构
 ![1](https://github.com/superbayes/web3_DecentralizedBlogPost/blob/main/others/chrome_YEV9btYRBv.jpg)
+
+## 技术
+* 将所有的博客内容(文字,图片,视频)保存到IPFS上
+* 将所有的博客元数据保存到区块链中
+* 在contract/下,有两个合约,`userinfo.sol`,将所有用户的数据永久性的保存到链上; `bloginfo.sol`,将所有用户文章的原数据永久保存到链上,一旦上链,永远不会被篡改.
+* 可以结合对称加密AES和非对称加密ecdsa,确保用户信息不会被泄露.
