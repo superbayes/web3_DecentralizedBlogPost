@@ -3,35 +3,27 @@ pragma solidity 0.8.15;
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.9/contracts/access/AccessControl.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.9/contracts/security/Pausable.sol";
 
-contract Blog is Pausable, AccessControl {
+contract User is Pausable, AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    struct Comment {
+    struct UserInfo {
+        bytes32 accountHash; // 账号哈希
+        bytes32 passwordHash; // 密码哈希
+        uint256 timestamp; // 时间戳
         uint256 userId; // 用户ID
-        string content; // 评论内容 IPFS CID
+        string username; // 用户名称
     }
 
-    struct BlogPost {
-        uint256 userId; // 用户ID
-        uint256 blogPostId;
-        uint256 timestamp; // 发布时间戳
-        uint256 likeCount; // 点赞数量
-        string ipfsCid_text; // 博客内容的IPFS CID
-        string[] comments; // 评论CID列表
-        string[] ipfsCid_image; // 博客图像的IPFS CID
-        string[] ipfsCid_video; // 博客视频的IPFS CID
-    }
-
-    BlogPost[] private blogPostList;
-    uint256 public blogPostCount;
-    mapping(uint256 => uint256[]) private userIdToblogPosts; //输入id查找所有的博客
+    UserInfo[] private users;
+    uint256 private userCount;
+    mapping(bytes32 => uint256) private accountHashToUser; //根据id查找users索引
 
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
-        createBlogPost(0,"0");
+        registerUser(0, 0, "null");
     }
 
     function pause() public onlyRole(PAUSER_ROLE) {
@@ -41,141 +33,141 @@ contract Blog is Pausable, AccessControl {
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
     }
-	
-    /**
-     * @dev 创建新的BlogPost
-     */
-    function createBlogPost(uint256 userId, string memory ipfsCidText)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
-        blogPostCount++;
-        BlogPost memory newPost = BlogPost({
-            userId: userId,
-            blogPostId: blogPostCount,
-            timestamp: block.timestamp,
-            likeCount: 0,
-            ipfsCid_text: ipfsCidText,
-            comments: new string[](0),
-            ipfsCid_image: new string[](0),
-            ipfsCid_video: new string[](0)
-        });
-        blogPostList.push(newPost);
-        userIdToblogPosts[userId].push(blogPostCount);
-    }
 
     /**
-     * @dev 更新BlogPost的likeCount
+     * @dev 注册新用户
      */
-    function updateLikeCount(uint256 userId, uint256 blogPostId)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
+    function registerUser(
+        bytes32 _accountHash,
+        bytes32 _passwordHash,
+        string memory _username
+    ) public onlyRole(ADMIN_ROLE) returns (uint256) {
+        userCount++; // 增加用户计数
+        users.push(
+            UserInfo({
+                accountHash: _accountHash,
+                passwordHash: _passwordHash,
+                timestamp: block.timestamp,
+                userId: userCount,
+                username: _username
+            })
         );
-        require(blogPostList[blogPostId - 1].userId == userId, "Access denied");
-        blogPostList[blogPostId - 1].likeCount++;
+
+        accountHashToUser[_accountHash] = userCount;
+        return userCount; // 返回新用户的用户ID
     }
 
     /**
-     * @dev 更新BlogPost的ipfsCid_text
+     * @dev 修改UserInfo
      */
-    function updateBlogPostText(
-        uint256 userId,
-        uint256 blogPostId,
-        string memory newIpfsCidText
-    ) public onlyRole(ADMIN_ROLE) {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
-        );
-        require(blogPostList[blogPostId - 1].userId == userId, "Access denied");
-        blogPostList[blogPostId - 1].ipfsCid_text = newIpfsCidText;
+    function updateUser(
+        bytes32 _accountHash,
+        bytes32 _newPasswordHash,
+        string memory _newUsername
+    ) private onlyRole(ADMIN_ROLE) {
+        uint256 index = accountHashToUser[_accountHash];
+        require(index > 0 && index <= userCount, "User ID is invalid");
+
+        UserInfo storage user = users[index]; // 获取用户
+        user.passwordHash = _newPasswordHash;
+        user.username = _newUsername;
     }
 
     /**
-     * @dev 添加新的评论
+     * @dev 修改密码
      */
-    function addComment(uint256 blogPostId, string memory content)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
-        );
-        blogPostList[blogPostId - 1].comments.push(content);
-    }
-
-    /**
-     * @dev 添加新的ipfsCid_image
-     */
-    function addImageCid(uint256 blogPostId, string memory imageIpfsCid)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
-        );
-        blogPostList[blogPostId - 1].ipfsCid_image.push(imageIpfsCid);
-    }
-
-    /**
-     * @dev 添加新的ipfsCid_video
-     */
-    function addVideoCid(uint256 blogPostId, string memory videoIpfsCid)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
-        );
-        blogPostList[blogPostId - 1].ipfsCid_video.push(videoIpfsCid);
-    }
-
-    /**
-     * @dev 查询BlogPost
-     */
-    function getBlogPost(uint256 blogPostId)
-        public
-        whenNotPaused
-        view
-        returns (BlogPost memory)
-    {
-        require(
-            blogPostId > 0 && blogPostId <= blogPostCount,
-            "Invalid blogPostId"
-        );
-        return blogPostList[blogPostId - 1];
-    }
-
-    /**
-     * @dev 查询用户的BlogPost列表
-     */
-    function getUserBlogPosts(uint256 userId)
-        public
-        whenNotPaused
-        view
-        returns (BlogPost[] memory)
-    {
-        uint256[] memory indexs = userIdToblogPosts[userId];
-        BlogPost[] memory bp_List = new BlogPost[](indexs.length);
-        for (uint256 i = 0; i < indexs.length; i++) {
-            uint256 idx = indexs[i] - 1;
-            bp_List[i] = blogPostList[idx];
+    function updatePassword(
+        bytes32 _accountHash,
+        bytes32 _oldPasswordHash,
+        bytes32 _newPasswordHash
+    ) public onlyRole(ADMIN_ROLE) returns (bool) {
+        uint256 index = accountHashToUser[_accountHash];
+        require(index > 0 && index <= userCount, "User ID is invalid");
+        UserInfo storage user = users[index];
+        if (user.passwordHash == _oldPasswordHash) {
+            user.passwordHash = _newPasswordHash;
+            return true;
+        } else {
+            return false;
         }
-        return bp_List;
     }
 
     /**
-     * @dev 查询BlogPost的总数量
+     * @dev 修改用户名
      */
-    function getBlogPostCount() public whenNotPaused view returns (uint256) {
-        return blogPostCount;
+    function updateUsername(
+        bytes32 _accountHash,
+        bytes32 _passwordHash,
+        string memory _newUsername
+    ) public onlyRole(ADMIN_ROLE) returns (bool) {
+        uint256 index = accountHashToUser[_accountHash];
+        require(index > 0 && index <= userCount, "User ID is invalid");
+        UserInfo storage user = users[index];
+        if (user.passwordHash == _passwordHash) {
+            user.username = _newUsername;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @dev   根据userId查询UserInfo
+     */
+    function getUserById(uint256 _userId)
+        public
+        view
+        whenNotPaused
+        returns (UserInfo memory)
+    {
+        require(_userId > 0 && _userId <= userCount, "User ID is invalid");
+        return users[_userId - 1]; // 返回用户信息
+    }
+
+    /**
+     * @dev 根据accountHash查询UserInfo
+     */
+    function getUserByAccountHash(bytes32 _accountHash)
+        public
+        view
+        whenNotPaused
+        returns (UserInfo memory)
+    {
+        // for (uint256 i = 0; i < users.length; i++) {
+        //     if (users[i].accountHash == _accountHash) {
+        //         return users[i]; // 找到用户并返回
+        //     }
+        // }
+        uint256 index = accountHashToUser[_accountHash];
+        require(index > 0 && index <= userCount, "User  is invalid");
+        UserInfo storage user = users[index];
+        return user;
+    }
+
+    /**
+     * @dev 根据username查询UserInfo
+     */
+    function getUserByUsername(string memory _username)
+        public
+        view
+        whenNotPaused
+        returns (UserInfo memory)
+    {
+        for (uint256 i = 0; i < users.length; i++) {
+            if (
+                keccak256(abi.encodePacked(users[i].username)) ==
+                keccak256(abi.encodePacked(_username))
+            ) {
+                return users[i]; // 找到用户并返回
+            }
+        }
+        revert("User not found");
+    }
+
+    /**
+     * @dev 查询用户总数量
+     */
+    function getTotalUsers() public view whenNotPaused returns (uint256) {
+        return userCount; // 返回用户总数
     }
 }
-
