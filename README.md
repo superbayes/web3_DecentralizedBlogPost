@@ -19,3 +19,4 @@
 * 全球可访问性：区块链的去中心化特性使得平台在全球范围内可用，不受地域限制。
 
 ## 架构
+![1](https://github.com/superbayes/web3_DecentralizedBlogPost/blob/main/others/chrome_YEV9btYRBv.jpg)
