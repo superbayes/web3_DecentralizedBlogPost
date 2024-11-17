@@ -26,3 +26,4 @@
 * 将所有的博客元数据保存到区块链中
 * 在contract/下,有两个合约,`userinfo.sol`,将所有用户的数据永久性的保存到链上; `bloginfo.sol`,将所有用户文章的原数据永久保存到链上,一旦上链,永远不会被篡改.
 * 可以结合对称加密AES和非对称加密ecdsa,确保用户信息不会被泄露.
+![1](https://github.com/superbayes/web3_DecentralizedBlogPost/blob/main/others/%E5%8E%BB%E4%B8%AD%E5%BF%83%E5%8D%9A%E5%AE%A2%E6%9E%B6%E6%9E%84.png)
